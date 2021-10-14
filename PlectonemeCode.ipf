@@ -1,8 +1,9 @@
+#pragma TextEncoding = "UTF-8"
 #pragma rtGlobals=3		// Use modern global access method and strict wave access.
 
 Function PlectonemeCode(Swave, Twave, Wwave, Dwave, CwaveRR, CwaveTT)
 
-wave Swave		//the sequence of DNA we are considering
+wave/T Swave		//the sequence of DNA we are considering
 wave Twave, Wwave, Dwave, CwaveRR, CwaveTT		//Twist, Wedge, and Direction parameters; Covariance parameters for flexibility (roll-roll and tilt-tilt)
 
 variable ii, Letter1, Letter2, index, alpha_n, beta_n, omDiv2_n
@@ -12,7 +13,7 @@ variable rise=0.339
 
 make/d/o/n=(SeqLength,4) DNApath, DNApathMajorGroove  //These 2 paths will trace the center and the major groove
 make/d/o/n=(SeqLength,2, 2) BasepairCovariance, LocalCovariance  //covariance matrices to estimate local stoffness along the sequence
-make/d/o/n=(2, 2) BendRot, Covariance, LocalCov  //more matrices for stiffness calculation
+make/d/o/n=(2, 2) BendRot, Covar, LocalCov  //more matrices for stiffness calculation
 DNApath=0
 make/d/o/n=(SeqLength) CurvatureSequence
 make/d/o/n=(SeqLength) Sequence_phase, Sequence_angle_energy, Sequence_angle_exp, EndEffects  //Sequence_angle_exp will eventually store the weight assigned to a plectoneme at each position on the DNA
@@ -37,11 +38,11 @@ T_n={{1,0,0,0},{0,1,0,0},{0,0,1,-rise/2},{0,0,0,1}}
 
 Letter1=0;
 For (ii=1; ii<SeqLength; ii+=1)
-	If  ((Swave[ii])==char2num("A"))
+	If  ((char2num(Swave[ii]))==char2num("A")) 
 		Letter2=0
-	Elseif ((Swave[ii])==char2num("C"))
+	Elseif ((char2num(Swave[ii]))==char2num("C"))
 		Letter2=1
-	Elseif ((Swave[ii])==char2num("G"))
+	Elseif ((char2num(Swave[ii]))==char2num("G"))
 		Letter2=2
 	Else
 		Letter2=3
@@ -50,8 +51,8 @@ For (ii=1; ii<SeqLength; ii+=1)
 	
 	Sequence_phase[ii]=Sequence_phase[ii-1]+Twave[index]					//This is used to measure how far around the DNA the major groove has rotated relative to the first base pair
 	BendRot={{cos(Sequence_phase[ii]), sin(Sequence_phase[ii])},{-sin(Sequence_phase[ii]),cos(Sequence_phase[ii])}}  //Rotation matrix 
-	Covariance={{CwaveRR[index], 0},{0,CwaveTT[index]}}		//The covariance matrix for the current basepair, expressed in the coordinates of the current basepair
-	MatrixOp/o CovRot = ( BendRot x Covariance x BendRot^t)	//Rotating the covariance matrix so it will line up with its neighbors
+	Covar={{CwaveRR[index], 0},{0,CwaveTT[index]}}		//The covariance matrix for the current basepair, expressed in the coordinates of the current basepair
+	MatrixOp/o CovRot = ( BendRot x Covar x BendRot^t)	//Rotating the covariance matrix so it will line up with its neighbors
 	BasepairCovariance[ii][][]=CovRot[q][r]					//Rotated covariance matrix at position is recorded
 
 	//these next steps are outlined in the paper I sent
@@ -89,7 +90,7 @@ print "path calculated"
 variable CurveWindow  //must be even
 Sequence_angle_energy=0
 Sequence_angle_exp=0
-Variable CircFrac=0.667	//We assume the plectoneme tip makes a 240û arc before joining the bulk plectoneme region
+Variable CircFrac=0.667	//We assume the plectoneme tip makes a 240ï¿½ arc before joining the bulk plectoneme region
 Variable BindLength=450   //experimentally, ~450 nt are bound to the surface at each end of the DNA
 Variable AvePlecLength=1000	
 Variable EnergyOffset
@@ -143,18 +144,18 @@ For (CurveWindow=40; CurveWindow<120; CurveWindow+=8)
 	EnergyOffset=25-CurveWindow*0.334*3/4.06   //adds energy penalty from pulling in DNA ends against a force
 	
 	For (ii=BindLength; ii<SeqLength-BindLength; ii+=1)
-		Covariance=LocalCovariance[ii][p][q]
+		Covar=LocalCovariance[ii][p][q]
 		BendRot={{cos(CurvePhase[ii]), sin(CurvePhase[ii])},{-sin(CurvePhase[ii]),cos(CurvePhase[ii])}}
-		MatrixOp/o CovRot = ( BendRot x Covariance x BendRot^t)		//local covariance matrix alligned to major groove
+		MatrixOp/o CovRot = ( BendRot x Covar x BendRot^t)		//local covariance matrix alligned to major groove
 		BendRot={{cos(pi/4), sin(pi/4)},{-sin(pi/4),cos(pi/4)}}
-		MatrixOp/o CovRot45 = ( BendRot x Covariance x BendRot^t)		//local covariance matrix alligned 45û to major groove
+		MatrixOp/o CovRot45 = ( BendRot x Covar x BendRot^t)		//local covariance matrix alligned 45ï¿½ to major groove
 		Cnorm=CurveMag[ii]/(2*pi*CircFrac)
 //				Cnorm=0				//Uncomment to compare to straight DNA with variable stiffness
 		E_base=CircFrac^2*3000/Curvewindow
 		Z1=exp(-E_base/CovRot[0][0]*((1-Cnorm)^2)+EnergyOffset)			//Bend in direction of curve
 		Z2=exp(-E_base/CovRot[0][0]*((1+Cnorm)^2)+EnergyOffset)			//Bend against curve
 		Z3=exp(-E_base/CovRot[1][1]*(1-(Cnorm)^2)+EnergyOffset)			//Bend perpendicular to curve
-		Z4=exp(-E_base/CovRot45[0][0]*(sqrt(Cnorm^2/2+1)-Cnorm/sqrt(2))^2+EnergyOffset)		//Bend at 45û, 135û, 225û, and 315û
+		Z4=exp(-E_base/CovRot45[0][0]*(sqrt(Cnorm^2/2+1)-Cnorm/sqrt(2))^2+EnergyOffset)		//Bend at 45ï¿½, 135ï¿½, 225ï¿½, and 315ï¿½
 		Z5=exp(-E_base/CovRot45[0][0]*(sqrt(Cnorm^2/2+1)+Cnorm/sqrt(2))^2+EnergyOffset)
 		Z6=exp(-E_base/CovRot45[1][1]*(sqrt(Cnorm^2/2+1)-Cnorm/sqrt(2))^2+EnergyOffset)
 		Z7=exp(-E_base/CovRot45[1][1]*(sqrt(Cnorm^2/2+1)+Cnorm/sqrt(2))^2+EnergyOffset)
